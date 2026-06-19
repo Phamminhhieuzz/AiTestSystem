@@ -371,6 +371,27 @@ app.MapGet("/api/questions", async (AppDbContext db) =>
     return Results.Ok(questions);
 });
 
+// API DEBUG: Kiểm tra trạng thái Database
+app.MapGet("/api/debug", async (AppDbContext db) =>
+{
+    try
+    {
+        var lc = await db.Levels.CountAsync();
+        var qc = await db.Questions.CountAsync();
+        var firstLevel = await db.Levels.FirstOrDefaultAsync();
+        return Results.Ok(new { 
+            status = "OK", 
+            levelsCount = lc, 
+            questionsCount = qc,
+            firstLevelId = firstLevel?.LevelID 
+        });
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(ex.Message);
+    }
+});
+
 // API 2: Nhận bài làm, chấm điểm và trả về danh sách review Đúng/Sai
 app.MapPost("/api/submit", async (SubmitRequest req, AppDbContext db) =>
 {
