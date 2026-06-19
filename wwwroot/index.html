@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Kiểm Tra Năng Lực AI Toàn Diện</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .quiz-card { border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: none; background: white; }
+        .question-title { border-left: 5px solid #0d6efd; padding-left: 15px; color: #212529; font-weight: 700; }
+        .review-title { border-left: 5px solid #6c757d; padding-left: 15px; color: #212529; font-weight: 700; }
+        .option-item { border: 1px solid #dee2e6; border-radius: 10px; padding: 15px; margin-bottom: 12px; cursor: pointer; transition: all 0.2s ease-in-out; }
+        .option-item:hover { background-color: #e9ecef; border-color: #0d6efd; transform: translateX(3px); }
+        .review-item { border: 1px solid #dee2e6; border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+        .progress { height: 8px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container mt-5" style="max-width: 750px;">
+        <div id="login-screen" class="card quiz-card p-5 text-center">
+            <h2 class="text-primary fw-bold mb-3">KHẢO SÁT NĂNG LỰC SỬ DỤNG AI</h2>
+            <p class="text-secondary mb-4">Vui lòng điền thông tin để bắt đầu bài thi phân loại gồm 40 câu hỏi trắc nghiệm</p>
+            <div class="text-start mx-auto w-100" style="max-width: 400px;">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Họ và Tên:</label>
+                    <input type="text" id="txt-fullname" class="form-control form-control-lg" placeholder="Nhập tên của bạn...">
+                </div>
+                <div class="mb-4">
+                    <label class="form-label fw-semibold">Phòng ban / Lớp:</label>
+                    <input type="text" id="txt-dept" class="form-control form-control-lg" placeholder="Nhập phòng ban...">
+                </div>
+                <button class="btn btn-primary btn-lg w-100 fw-bold shadow-sm" onclick="startQuiz()">Bắt Đầu Làm Bài</button>
+            </div>
+        </div>
+
+        <div id="quiz-screen" class="d-none">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="fw-bold text-dark fs-5" id="lbl-progress">Câu hỏi: 1 / 40</span>
+                <span class="badge bg-secondary p-2" id="lbl-level-tag">Vòng thi cuốn chiếu</span>
+            </div>
+            <div class="progress mb-4">
+                <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+            </div>
+            <div class="card quiz-card p-4">
+                <div id="dynamic-quiz-container"></div>
+            </div>
+        </div>
+
+        <div id="result-screen" class="card quiz-card p-5 text-center d-none">
+            <h2 class="text-success fw-bold mb-2">HOÀN THÀNH BÀI KIỂM TRA!</h2>
+            <p class="text-muted mb-4">Kết quả đánh giá chi tiết từng câu hỏi</p>
+            
+            <div class="mb-4">
+                <h1 class="display-3 fw-bold text-primary mb-0" id="lbl-final-score">0 / 40</h1>
+                <div id="lbl-final-level" class="badge bg-warning text-dark fs-5 p-2 px-4 rounded-pill shadow-sm mt-3 mb-2">Chưa xác định</div>
+                <p class="text-muted small mx-auto mt-2" style="max-width: 500px;" id="lbl-final-desc"></p>
+            </div>
+
+            <hr class="my-4">
+            <h4 class="text-start fw-bold text-secondary mb-3">Xem lại đáp án chi tiết:</h4>
+            
+            <div id="review-list-container" class="text-start mb-4"></div>
+
+            <button class="btn btn-primary btn-lg px-5 fw-bold" onclick="location.reload()">Thoát & Làm Lại</button>
+        </div>
+    </div>
+
+    <script>
+        let questionsData = [];
+        let currentIndex = 0;
+        let answersPayload = [];
+        let userFullName = "";
+        let userDept = "";
+
+        function startQuiz() {
+            userFullName = document.getElementById('txt-fullname').value.trim();
+            userDept = document.getElementById('txt-dept').value.trim();
+            if(!userFullName || !userDept) {
+                alert("Vui lòng nhập đầy đủ thông tin!");
+                return;
+            }
+            document.getElementById('login-screen').classList.add('d-none');
+            document.getElementById('quiz-screen').classList.remove('d-none');
+            fetchQuestions();
+        }
+
+        async function fetchQuestions() {
+            try {
+                const res = await fetch('/api/questions');
+                questionsData = await res.json();
+                renderCurrentQuestion();
+            } catch (err) {
+                document.getElementById('dynamic-quiz-container').innerHTML = '<h5 class="text-danger text-center">Lỗi tải câu hỏi!</h5>';
+            }
+        }
+
+        function renderCurrentQuestion() {
+            if (currentIndex >= questionsData.length) {
+                processFinalSubmit();
+                return;
+            }
+            const q = questionsData[currentIndex];
+            const percent = (currentIndex / questionsData.length) * 100;
+            document.getElementById('progress-bar').style.width = percent + '%';
+            document.getElementById('lbl-progress').innerText = `Câu hỏi: ${currentIndex + 1} / ${questionsData.length}`;
+
+            if(currentIndex < 10) document.getElementById('lbl-level-tag').className = "badge bg-info p-2", document.getElementById('lbl-level-tag').innerText = "Chặng 1: Cơ bản";
+            else if(currentIndex < 20) document.getElementById('lbl-level-tag').className = "badge bg-success p-2", document.getElementById('lbl-level-tag').innerText = "Chặng 2: Ứng dụng";
+            else if(currentIndex < 30) document.getElementById('lbl-level-tag').className = "badge bg-warning text-dark p-2", document.getElementById('lbl-level-tag').innerText = "Chặng 3: Nâng cao";
+            else document.getElementById('lbl-level-tag').className = "badge bg-danger p-2", document.getElementById('lbl-level-tag').innerText = "Chặng 4: Chuyên gia";
+
+            let html = `<h5 class="question-title mb-4 lh-base">${q.content}</h5><div class="list-options">`;
+            q.answers.forEach(a => {
+                html += `
+                    <div class="option-item d-flex align-items-center" onclick="handleUserChoice(${a.answerID})">
+                        <input class="form-check-input" type="radio" name="current_q" id="rad_${a.answerID}" style="pointer-events: none;">
+                        <label class="form-check-label ms-3 fs-6" style="cursor:pointer; pointer-events: none;">${a.content}</label>
+                    </div>
+                `;
+            });
+            html += `</div>`;
+            document.getElementById('dynamic-quiz-container').innerHTML = html;
+        }
+
+        function handleUserChoice(answerId) {
+            document.getElementById('rad_' + answerId).checked = true;
+            answersPayload.push(answerId);
+            setTimeout(() => {
+                currentIndex++;
+                renderCurrentQuestion();
+            }, 250);
+        }
+
+        async function processFinalSubmit() {
+            document.getElementById('quiz-screen').classList.add('d-none');
+            document.getElementById('result-screen').classList.remove('d-none');
+
+            try {
+                const res = await fetch('/api/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        FullName: userFullName,
+                        Department: userDept,
+                        SelectedAnswerIds: answersPayload
+                    })
+                });
+                const finalResult = await res.json();
+
+                // Hiển thị tổng điểm & danh hiệu danh mục chính
+                document.getElementById('lbl-final-score').innerText = `${finalResult.score} / ${questionsData.length}`;
+                document.getElementById('lbl-final-level').innerText = finalResult.levelName;
+                document.getElementById('lbl-final-desc').innerText = finalResult.description;
+
+                // LOGIC VẼ DANH SÁCH REVIEW ĐÚNG SAI CHI TIẾT
+                let reviewHtml = '';
+                questionsData.forEach((q, idx) => {
+                    // Lấy thông tin chấm điểm từ server cho câu hỏi này
+                    const review = finalResult.reviews.find(r => r.questionId === q.questionID);
+                    const isUserCorrect = review.userAnswerId === review.correctAnswerId;
+
+                    reviewHtml += `
+                        <div class="card p-3 mb-4 shadow-sm border-0 bg-white">
+                            <h6 class="review-title mb-3">
+                                Câu ${idx + 1}: ${q.content} 
+                                ${isUserCorrect ? '<span class="text-success ms-2 fw-bold">✓ Đúng</span>' : '<span class="text-danger ms-2 fw-bold">✗ Sai</span>'}
+                            </h6>
+                    `;
+
+                    q.answers.forEach(a => {
+                        let cssClass = '';
+                        let textBadge = '';
+
+                        if (a.answerID === review.correctAnswerId) {
+                            // Tô xanh đáp án đúng tuyệt đối
+                            cssClass = 'bg-success-subtle border-success text-success-dark fw-medium';
+                            textBadge = ' <span class="badge bg-success ms-2">✓ Đáp án chuẩn</span>';
+                        } else if (a.answerID === review.userAnswerId && !isUserCorrect) {
+                            // Tô đỏ đáp án sai nếu người dùng lựa chọn trúng nó
+                            cssClass = 'bg-danger-subtle border-danger text-danger-dark';
+                            textBadge = ' <span class="badge bg-danger ms-2">✗ Bạn đã chọn</span>';
+                        }
+
+                        reviewHtml += `
+                            <div class="review-item ${cssClass}">
+                                ${a.content} ${textBadge}
+                            </div>
+                        `;
+                    });
+
+                    reviewHtml += `</div>`;
+                });
+
+                document.getElementById('review-list-container').innerHTML = reviewHtml;
+
+            } catch (err) {
+                alert("Lỗi hệ thống khi tổng hợp bảng điểm!");
+            }
+        }
+    </script>
+</body>
+</html>
