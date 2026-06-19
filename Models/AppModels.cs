@@ -50,7 +50,7 @@ namespace AiTestSystem.Models
         [Required]
         public string FullName { get; set; }
         public string Department { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public ICollection<TestResult> TestResults { get; set; }
     }
@@ -62,7 +62,7 @@ namespace AiTestSystem.Models
         public int UserID { get; set; }
         public int TotalScore { get; set; }
         public int AssignedLevelID { get; set; }
-        public DateTime TestDate { get; set; } = DateTime.Now;
+        public DateTime TestDate { get; set; } = DateTime.UtcNow;
 
         [ForeignKey("UserID")]
         public User User { get; set; }

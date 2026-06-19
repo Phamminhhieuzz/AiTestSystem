@@ -3,13 +3,31 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// --- KẾT NỐI DATABASE ---
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString));
+// --- KẾT NỐI DATABASE (Railway PostgreSQL) ---
+var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL")
+    ?? builder.Configuration.GetConnectionString("DefaultConnection");
+
+// Chuyển đổi Railway DATABASE_URL (postgres://user:pass@host:port/db) sang Npgsql format
+if (connectionString != null && connectionString.StartsWith("postgres://"))
+{
+    var uri = new Uri(connectionString);
+    var userInfo = uri.UserInfo.Split(':');
+    connectionString = $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true";
+}
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(connectionString));
 
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+// Auto-migrate database khi khởi động
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+}
 
 if (app.Environment.IsDevelopment())
 {
@@ -73,11 +91,11 @@ app.MapPost("/api/submit", async (SubmitRequest req, AppDbContext db) =>
     var level = await db.Levels.FindAsync(assignedLevelId);
 
     // Lưu thông tin người làm bài và kết quả điểm số vào DB
-    var user = new User { FullName = req.FullName, Department = req.Department, CreatedAt = DateTime.Now };
+    var user = new User { FullName = req.FullName, Department = req.Department, CreatedAt = DateTime.UtcNow };
     db.Users.Add(user);
     await db.SaveChangesAsync();
 
-    var result = new TestResult { UserID = user.UserID, TotalScore = totalScore, AssignedLevelID = assignedLevelId, TestDate = DateTime.Now };
+    var result = new TestResult { UserID = user.UserID, TotalScore = totalScore, AssignedLevelID = assignedLevelId, TestDate = DateTime.UtcNow };
     db.TestResults.Add(result);
     await db.SaveChangesAsync();
 
