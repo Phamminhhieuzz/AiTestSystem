@@ -7,8 +7,8 @@ var builder = WebApplication.CreateBuilder(args);
 var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL")
     ?? builder.Configuration.GetConnectionString("DefaultConnection");
 
-// Chuyển đổi Railway DATABASE_URL (postgres://user:pass@host:port/db) sang Npgsql format
-if (connectionString != null && connectionString.StartsWith("postgres://"))
+// Chuyển đổi DATABASE_URL (postgres:// hoặc postgresql://) sang Npgsql format
+if (connectionString != null && (connectionString.StartsWith("postgres://") || connectionString.StartsWith("postgresql://")))
 {
     var uri = new Uri(connectionString);
     var userInfo = uri.UserInfo.Split(':');
